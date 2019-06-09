@@ -1,0 +1,55 @@
+
+Usage instructions.txt
+======================
+
+Please follow the following steps in order to be able to run this code.
+
+Pre-processing data
+===================
+(The original data isn't available in github owing to size constraints. So the structure of the code written is given.)
+preprocessing_code
+|_blacklist (contains provided 1k-blacklist csv)
+|_ip_data
+|_op_data
+|_scraps
+(file: task1.py)
+(file: task2.py)
+(file: task3.py)
+
+1) Download the 1k-users-sorted.zip folder into the directory ip_data and extract it.
+2) create the remaining folder structure
+3) Run task1.py : purges blacklisted comments from blacklist folder
+4) Run task2.py : adds postId to replies -> op_data : comment_stream.csv
+5) Run task3.py : deletes likes that have earlier timestamp than parent post -> op_data : like_stream.csv
+6) Original post_stream.csv is used as it is
+7) These three outputs are inputs to the Analytics task and can be seen in the data/task1/ folder in the 'dspa_project'
+
+Analytics task 1 (Get post statistics):
+=================
+1) Begin zookeeper and kafka server listening on 9092
+2) Create 3 topics with 1 partition and 1 replica each by the names of "postStream", "likeStream", "commentStream"
+3) Run /dspa-project/src/main/java/poststats/kafkaProducer/EventAdderToKafka.java
+=> This adds the data from csv files into respective kafka topics
+4) The output of this task will be available on Kafka consumer console in an understandable and clear format where results are updated every window when they arrive. For this start Kafka server listening on 9093 and create a topic "resultStream1" with 1 partition and 1 replica and 9093 as the leader.
+5) Start the kafka-consumer-console.sh and wait for the outputs to arrive in this topic.
+6) Run dspa-project/src/main/java/poststats/kafkaConsumer/Analytics1.java for the first task which updates active post statistics every 30 minutes.
+7) One row of output is of the form POSTID| (commentCount, replyCount, uniqueUserCount(which although present in 30 min results is updated only every 1 hr), lastActivityTimestamp(on this post), Time_in_ISO format)
+The window start and end times are given on top.
+
+Analytics task 2 (Get recommendations of whom to follow):
+=================
+FIRST 3 steps need not be done if task 1 is already executed.
+1) Begin zookeeper and kafka server listening on 9092
+2) Create 3 topics with 1 partition and 1 replica each by the names of "postStream", "likeStream", "commentStream"
+3) Run /dspa-project/src/main/java/poststats/kafkaProducer/EventAdderToKafka.java
+=> This adds the data from csv files into respective kafka topics
+
+4) The output of this task will be available on Kafka consumer console in an understandable and clear format where results are updated every window when they arrive. For this start Kafka server listening on 9093 and create a topic "resultStream2" with 1 partition and 1 replica and 9093 as the leader.
+5) Start the kafka-consumer-console.sh and wait for the outputs to arrive in this topic.
+6) Run dspa-project/src/main/java/poststats/kafkaConsumer/Analytics2.java for the second task which gives timely updated recommendations on whom-to-follow for a fixed set of 10 users (which are random but hardcoded into the program)
+7) One row of output is of the form : Person1 <---> Person2 | (currentlyOnline(last 4hrs), numOfOnlineInteractionsWithPerson1, sameLocation, sameOrganization, numberOfCommonTagsTheySubscribeTo, alreadyAFriend) | Total: (Calculated similarity score)
+The window start and end times are given on top.
+There are 10*(top 5) results for each user and this gets updated with time as per the values for the dynamic and static features considered above.
+
+For expected output, please see screenshots-dspa folder.
+
